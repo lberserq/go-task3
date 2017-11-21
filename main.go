@@ -69,7 +69,7 @@ func GetCount(mp map[int]bool) int {
 
 const UDP_PACKET_SIZE = 1024
 
-func RepackMessage(msg []byte, id int) []byte {
+func RepackMessage(msg []byte, id int, from int) []byte {
 	message := Msg{}
 	err := json.Unmarshal(msg, &message)
 	CheckError(err)
@@ -78,6 +78,7 @@ func RepackMessage(msg []byte, id int) []byte {
 		err = json.Unmarshal([]byte(message.Data), &tokenMsg)
 		CheckError(err)
 		tokenMsg.Dst = id
+		tokenMsg.Sender = from
 		sndBuf, _ := json.Marshal(&tokenMsg)
 		message.Data = string(sndBuf)
 	} else {
@@ -234,7 +235,7 @@ func ReNode(id int, t int, numP int, startWg *sync.WaitGroup, finalWg *sync.Wait
 			}
 
 			if 1 == atomic.LoadUint32(&needToDropToken) {
-                atomic.CompareAndSwapUint32(&needToDropToken, 1, 0)
+                atomic.StoreUint32(&needToDropToken, 1)
 				continue
 			}
 			message := Msg{}
@@ -320,12 +321,12 @@ func ReNode(id int, t int, numP int, startWg *sync.WaitGroup, finalWg *sync.Wait
 							}
 
 						}
-
+						tokenMsg.Sender = id
 						tbuff, _ := json.Marshal(tokenMsg)
 						message.Data = string(tbuff)
 						time.Sleep(time.Millisecond * time.Duration(t))
 					}
-					atomic.CompareAndSwapUint32(&needToDropToken, 1, 0)
+					atomic.StoreUint32(&needToDropToken, 1)
 				}
 			}
 			if !needToSendMessage {
@@ -354,7 +355,7 @@ func ReNode(id int, t int, numP int, startWg *sync.WaitGroup, finalWg *sync.Wait
 			if needToSendMessage {
 				msgBuff, _ := json.Marshal(&message)
 				if nbg != (id+1)%n {
-					msgBuff = RepackMessage(msgBuff, nbg)
+					msgBuff = RepackMessage(msgBuff, nbg, id)
 				}
 				_, err := RemoteConn.Write(msgBuff)
 				CheckError(err)
