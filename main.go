@@ -260,7 +260,7 @@ func ReNode(id int, t int, numP int, startWg *sync.WaitGroup, finalWg *sync.Wait
 				{
 					isToken = true
 
-					needToSendMessage = 0 == atomic.LoadUint32(&needToDropToken)
+					needToSendMessage = 0 == atomic.LoadUint32(&needToDropToken) && !isActivePolls
 
 					tokenMsg := Token{}
 					err = json.Unmarshal([]byte(message.Data), &tokenMsg)
